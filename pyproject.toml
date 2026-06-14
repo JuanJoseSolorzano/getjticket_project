@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "getjticket"
+version = "1.0.1"
+authors = [
+    { name="Juan Jose Solorzano", email="juanjose.solorzano.c@gmail.com" }
+]
+description = "A tool to fetch and display JIRA ticket information in the terminal."
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pygments>=2.17.0",
+    "colored>=1.4.4"
+]
+
+# Right side: package_folder.module_file:function_name
+[project.scripts]
+getjticket = "getjticket.getjticket:run"  # Creates the global 'getjticket' terminal command!
