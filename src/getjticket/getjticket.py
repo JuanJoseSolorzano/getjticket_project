@@ -10,6 +10,7 @@ from requests.auth import HTTPBasicAuth
 from pygments import highlight
 from pygments.lexers import TextLexer, get_lexer_by_name
 from pygments.formatters import TerminalTrueColorFormatter
+from rich.console import Console
 from datetime import date
 
 JIRA_SERVER = os.getenv("JIRA_SERVER","")
@@ -24,7 +25,8 @@ SEPARATOR = '─' * 100
 SEPARATOR_2 = '═' * 100
 PINK =   Fore.rgb("100%", "0%", "60%")
 GRAY = Fore.rgb("50%", "50%", "50%")
-PARAMS = {"fields": "summary,description,timespent,timeestimate,timetracking,worklog"}
+PARAMS = {"fields": "summary,description,timespent,timeestimate,timetracking,worklog,comment"}
+CONSOLE = Console()
 
 
 def parse_args():
@@ -32,6 +34,7 @@ def parse_args():
     parser.add_argument("issue_id", type=int, help="The ID of the JIRA issue (e.g., 6552 for SETV-6552).")
     parser.add_argument("-d", "--description", action="store_true", default=False, help="Show detailed information about the issue.")
     parser.add_argument("-t", "--time", action="store_true", default=False, help="Show time tracking information for the issue.")
+    parser.add_argument("-c", "--comment", action="store_true", default=False, help="Get the comment of the issue.")
     return parser.parse_args()
 
 def markup2markdown(text):
@@ -108,16 +111,38 @@ def get_description(fields, linK_to_issue, issue_id) -> None:
         print(f"{GRAY}{line_number:<2}│ {Style.reset}{line}")
     print(SEPARATOR_2)
 
+def get_comments(fields, linK_to_issue, issue_id) -> None:
+    comments = fields["comment"]["comments"]
+    print(SEPARATOR_2)
+    print(f"  {GRAY}{ISSUE_KEY % issue_id} - {fields['summary']}")
+    print(f"  [{linK_to_issue}]{Style.reset}")
+    print(f"{SEPARATOR}")
+    for comment in comments:
+        author = comment["author"]["displayName"]
+        created = comment["created"].replace("T", " ").replace(".000+0000", "")
+        body = markup2markdown(comment["body"])
+        lexer = get_lexer_by_name("markdown", stripall=True)
+        colored_output = highlight(body, lexer, TerminalTrueColorFormatter()).splitlines()
+        print(f"{PINK}{author} commented on {created}:{Style.reset}")
+        for line_number, line in enumerate(colored_output, start=1):
+            line_info = f"{GRAY}{line_number:<2}│ {Style.reset}{line}"
+            print(line_info)
+        print(SEPARATOR)
+    print(SEPARATOR_2)
+
 def run()->None:
     args = parse_args()
     issue_id = args.issue_id
     linK_to_issue = f"https://{JIRA_SERVER}/browse/{ISSUE_KEY % issue_id}"
     response = connect_jira(issue_id).json()
     fields = response["fields"]
+
     if args.description:
         get_description(fields, linK_to_issue, issue_id)
     elif args.time:
         get_time_tracking_info(fields, linK_to_issue, issue_id)
+    elif args.comment:
+        get_comments(fields, linK_to_issue, issue_id)
     else:
         get_description(fields, linK_to_issue, issue_id)
         get_time_tracking_info(fields, linK_to_issue, issue_id)
